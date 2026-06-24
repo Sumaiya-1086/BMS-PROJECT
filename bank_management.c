@@ -8,12 +8,15 @@ int employeeCount = 0;
 int accountNumbers[50];
 char customerNames[50][30];
 char customerPasswords[50][20];
+
 float balances[50];
-int verified[50];
+int verified[50];   
+/* 0 = Pending, 1 = Approved, 2 = Rejected */
 
 char complaints[50][100];
 char complaintReplies[50][100];
 int complaintStatus[50];
+/* 0 = No complaint, 1 = Not Resolved, 2 = Resolved */
 
 char history[50][20][100];
 int historyCount[50];
@@ -39,34 +42,38 @@ float inputFloat() {
     return value;
 }
 
-void saveData() {
-    FILE *fp = fopen("bankdata.dat", "wb");
-
-    if (fp == NULL) {
-        printf("File error while saving data.\n");
-        return;
+int findEmployee(char name[]) {
+    int i;
+    for (i = 0; i < employeeCount; i++) {
+        if (strcmp(employeeNames[i], name) == 0)
+            return i;
     }
+    return -1;
+}
 
-    fwrite(&employeeCount, sizeof(int), 1, fp);
-    fwrite(employeeNames, sizeof(employeeNames), 1, fp);
-    fwrite(employeePasswords, sizeof(employeePasswords), 1, fp);
+int findCustomerByName(char name[]) {
+    int i;
+    for (i = 0; i < customerCount; i++) {
+        if (strcmp(customerNames[i], name) == 0)
+            return i;
+    }
+    return -1;
+}
 
-    fwrite(&customerCount, sizeof(int), 1, fp);
-    fwrite(&nextAccountNumber, sizeof(int), 1, fp);
-    fwrite(accountNumbers, sizeof(accountNumbers), 1, fp);
-    fwrite(customerNames, sizeof(customerNames), 1, fp);
-    fwrite(customerPasswords, sizeof(customerPasswords), 1, fp);
-    fwrite(balances, sizeof(balances), 1, fp);
-    fwrite(verified, sizeof(verified), 1, fp);
+int findCustomerByAccount(int accNo) {
+    int i;
+    for (i = 0; i < customerCount; i++) {
+        if (accountNumbers[i] == accNo)
+            return i;
+    }
+    return -1;
+}
 
-    fwrite(complaints, sizeof(complaints), 1, fp);
-    fwrite(complaintReplies, sizeof(complaintReplies), 1, fp);
-    fwrite(complaintStatus, sizeof(complaintStatus), 1, fp);
-
-    fwrite(history, sizeof(history), 1, fp);
-    fwrite(historyCount, sizeof(historyCount), 1, fp);
-
-    fclose(fp);
+void addHistory(int index, char text[]) {
+    if (historyCount[index] < 20) {
+        strcpy(history[index][historyCount[index]], text);
+        historyCount[index]++;
+    }
 }
 
 void addDefaultData() {
@@ -104,80 +111,14 @@ void addDefaultData() {
     balances[3] = 8000;
     verified[3] = 1;
 
-    customerCount = 4;
-
-    for (i = 0; i < 50; i++) {
+    for (i = 0; i < 4; i++) {
         historyCount[i] = 0;
         complaintStatus[i] = 0;
         strcpy(complaints[i], "No complaint");
         strcpy(complaintReplies[i], "No reply");
     }
 
-    saveData();
-}
-
-void loadData() {
-    FILE *fp = fopen("bankdata.dat", "rb");
-
-    if (fp == NULL) {
-        addDefaultData();
-        return;
-    }
-
-    fread(&employeeCount, sizeof(int), 1, fp);
-    fread(employeeNames, sizeof(employeeNames), 1, fp);
-    fread(employeePasswords, sizeof(employeePasswords), 1, fp);
-
-    fread(&customerCount, sizeof(int), 1, fp);
-    fread(&nextAccountNumber, sizeof(int), 1, fp);
-    fread(accountNumbers, sizeof(accountNumbers), 1, fp);
-    fread(customerNames, sizeof(customerNames), 1, fp);
-    fread(customerPasswords, sizeof(customerPasswords), 1, fp);
-    fread(balances, sizeof(balances), 1, fp);
-    fread(verified, sizeof(verified), 1, fp);
-
-    fread(complaints, sizeof(complaints), 1, fp);
-    fread(complaintReplies, sizeof(complaintReplies), 1, fp);
-    fread(complaintStatus, sizeof(complaintStatus), 1, fp);
-
-    fread(history, sizeof(history), 1, fp);
-    fread(historyCount, sizeof(historyCount), 1, fp);
-
-    fclose(fp);
-}
-
-int findEmployee(char name[]) {
-    int i;
-    for (i = 0; i < employeeCount; i++) {
-        if (strcmp(employeeNames[i], name) == 0)
-            return i;
-    }
-    return -1;
-}
-
-int findCustomerByName(char name[]) {
-    int i;
-    for (i = 0; i < customerCount; i++) {
-        if (strcmp(customerNames[i], name) == 0)
-            return i;
-    }
-    return -1;
-}
-
-int findCustomerByAccount(int accNo) {
-    int i;
-    for (i = 0; i < customerCount; i++) {
-        if (accountNumbers[i] == accNo)
-            return i;
-    }
-    return -1;
-}
-
-void addHistory(int index, char text[]) {
-    if (historyCount[index] < 20) {
-        strcpy(history[index][historyCount[index]], text);
-        historyCount[index]++;
-    }
+    customerCount = 4;
 }
 
 void customerSignup() {
@@ -215,7 +156,6 @@ void customerSignup() {
     printf("Status: Pending Verification.\n");
 
     customerCount++;
-    saveData();
 }
 
 void addEmployee() {
@@ -240,8 +180,6 @@ void addEmployee() {
     scanf("%s", employeePasswords[employeeCount]);
 
     employeeCount++;
-    saveData();
-
     printf("Employee added successfully.\n");
 }
 
@@ -279,8 +217,6 @@ void deleteEmployee() {
         }
 
         employeeCount--;
-        saveData();
-
         printf("Employee deleted successfully.\n");
     } else {
         printf("Invalid employee number.\n");
@@ -320,8 +256,6 @@ void editEmployee() {
 
         printf("Enter new password: ");
         scanf("%s", employeePasswords[num]);
-
-        saveData();
 
         printf("Employee updated successfully.\n");
     } else {
@@ -433,8 +367,6 @@ void editCustomer() {
         printf("Enter new password: ");
         scanf("%s", customerPasswords[index]);
 
-        saveData();
-
         printf("Customer updated successfully.\n");
     } else {
         printf("Invalid account number.\n");
@@ -471,8 +403,6 @@ void deleteCustomer() {
         }
 
         customerCount--;
-        saveData();
-
         printf("Customer deleted successfully.\n");
     } else {
         printf("Invalid account number.\n");
@@ -511,12 +441,10 @@ void verifyAccount() {
 
         if(choice == 1) {
             verified[index] = 1;
-            saveData();
             printf("Customer Approved.\n");
         }
         else if(choice == 2) {
             verified[index] = 2;
-            saveData();
             printf("Customer Rejected.\n");
         }
         else {
@@ -543,7 +471,6 @@ void viewComplaints() {
             fgets(complaintReplies[i], 100, stdin);
 
             complaintStatus[i] = 2;
-            saveData();
 
             printf("Complaint Resolved.\n");
         }
@@ -695,8 +622,6 @@ void customerMenu() {
                         amount, balances[index]);
 
                         addHistory(index,text);
-                        saveData();
-
                         printf("Deposit Successful\n");
                     } else {
                         printf("Invalid amount.\n");
@@ -720,8 +645,6 @@ void customerMenu() {
                         amount, balances[index]);
 
                         addHistory(index,text);
-                        saveData();
-
                         printf("Withdraw Successful\n");
                     }
                     else {
@@ -762,7 +685,6 @@ void customerMenu() {
                 } else {
                     complaintStatus[index] = 1;
                     strcpy(complaintReplies[index], "No reply yet");
-                    saveData();
                     printf("Complaint Submitted\n");
                 }
                 break;
@@ -778,22 +700,25 @@ void customerMenu() {
                 }
                 break;
 
-            case 8:
-                if (verified[index] == 2) {
-                    verified[index] = 0;
-                    saveData();
-                    printf("Reapply Successful.\n");
-                    printf("Status Changed To Pending Verification.\n");
-                }
-                else if (verified[index] == 1) {
-                    printf("Account Already Approved.\n");
-                    printf("Reapply Option Not Available.\n");
-                }
-                else if (verified[index] == 0) {
-                    printf("Your Request Is Already Pending.\n");
-                    printf("Please Wait For Employee Approval.\n");
-                }
-                break;
+       case 8:
+
+    if (verified[index] == 2) {
+        verified[index] = 0;
+        printf("Reapply Successful.\n");
+        printf("Status Changed To Pending Verification.\n");
+    }
+
+    else if (verified[index] == 1) {
+        printf("Account Already Approved.\n");
+        printf("Reapply Option Not Available.\n");
+    }
+
+    else if (verified[index] == 0) {
+        printf("Your Request Is Already Pending.\n");
+        printf("Please Wait For Employee Approval.\n");
+    }
+
+    break;
 
             case 9:
                 printf("Logout Successful\n");
@@ -809,7 +734,7 @@ void customerMenu() {
 int main() {
     int choice;
 
-    loadData();
+    addDefaultData();
 
     do {
         printf("\n===== BANK MANAGEMENT SYSTEM =====\n");
@@ -827,12 +752,8 @@ int main() {
             case 2: employeeMenu(); break;
             case 3: customerSignup(); break;
             case 4: customerMenu(); break;
-            case 5:
-                saveData();
-                printf("Thank You\n");
-                break;
-            default:
-                printf("Invalid Choice\n");
+            case 5: printf("Thank You\n"); break;
+            default: printf("Invalid Choice\n");
         }
 
     } while(choice != 5);
