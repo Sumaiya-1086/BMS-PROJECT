@@ -1,56 +1,5 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <direct.h>
-#include <windows.h>
-
-char dataFilePath[MAX_PATH] = "";
-
-void initDataFilePath(void) {
-    char exePath[MAX_PATH];
-    char exeDir[MAX_PATH];
-    char *lastSep;
-
-    if (GetModuleFileNameA(NULL, exePath, MAX_PATH) == 0) {
-        strcpy(dataFilePath, "output\\bankdata.txt");
-        return;
-    }
-
-    lastSep = strrchr(exePath, '\\');
-    if (!lastSep)
-        lastSep = strrchr(exePath, '/');
-
-    if (lastSep)
-        *lastSep = '\0';
-
-    strcpy(exeDir, exePath);
-    lastSep = strrchr(exeDir, '\\');
-    if (!lastSep)
-        lastSep = strrchr(exeDir, '/');
-
-    if (lastSep && strcmp(lastSep + 1, "output") == 0) {
-        _snprintf(dataFilePath, sizeof(dataFilePath), "%s\\bankdata.txt", exeDir);
-    } else {
-        _snprintf(dataFilePath, sizeof(dataFilePath), "%s\\output\\bankdata.txt", exeDir);
-    }
-
-    dataFilePath[sizeof(dataFilePath) - 1] = '\0';
-}
-
-void ensureDataDir(void) {
-    char dir[MAX_PATH];
-    char *lastSep;
-
-    strcpy(dir, dataFilePath);
-    lastSep = strrchr(dir, '\\');
-    if (!lastSep)
-        lastSep = strrchr(dir, '/');
-
-    if (lastSep) {
-        *lastSep = '\0';
-        _mkdir(dir);
-    }
-}
 
 char employeeNames[20][30];
 char employeePasswords[20][20];
@@ -91,250 +40,6 @@ float inputFloat() {
         while (getchar() != '\n');
     }
     return value;
-}
-
-void addDefaultData(void);
-
-void stripNewline(char str[]) {
-    size_t len = strlen(str);
-    if (len > 0 && str[len - 1] == '\n')
-        str[len - 1] = '\0';
-}
-
-int readInt(FILE *fp, int *value) {
-    char buffer[256];
-    if (!fgets(buffer, sizeof(buffer), fp))
-        return 0;
-    *value = atoi(buffer);
-    return 1;
-}
-
-int readFloatFile(FILE *fp, float *value) {
-    char buffer[256];
-    if (!fgets(buffer, sizeof(buffer), fp))
-        return 0;
-    *value = (float)atof(buffer);
-    return 1;
-}
-
-int readLabelInt(FILE *fp, const char *label, int *value) {
-    char buffer[256];
-    char expected[128];
-    if (!fgets(buffer, sizeof(buffer), fp))
-        return 0;
-    stripNewline(buffer);
-    snprintf(expected, sizeof(expected), "%s: ", label);
-    if (strncmp(buffer, expected, strlen(expected)) != 0)
-        return 0;
-    *value = atoi(buffer + strlen(expected));
-    return 1;
-}
-
-int readLabelFloat(FILE *fp, const char *label, float *value) {
-    char buffer[256];
-    char expected[128];
-    if (!fgets(buffer, sizeof(buffer), fp))
-        return 0;
-    stripNewline(buffer);
-    snprintf(expected, sizeof(expected), "%s: ", label);
-    if (strncmp(buffer, expected, strlen(expected)) != 0)
-        return 0;
-    *value = (float)atof(buffer + strlen(expected));
-    return 1;
-}
-
-int readLabelString(FILE *fp, const char *label, char *output, int size) {
-    char buffer[256];
-    char expected[128];
-    if (!fgets(buffer, sizeof(buffer), fp))
-        return 0;
-    stripNewline(buffer);
-    snprintf(expected, sizeof(expected), "%s: ", label);
-    if (strncmp(buffer, expected, strlen(expected)) != 0)
-        return 0;
-    strncpy(output, buffer + strlen(expected), size - 1);
-    output[size - 1] = '\0';
-    return 1;
-}
-
-void saveData() {
-    int i, j;
-    ensureDataDir();
-    FILE *fp = fopen(dataFilePath, "w");
-
-    if (!fp) {
-        printf("Unable to save data to %s\n", dataFilePath);
-        return;
-    }
-
-    fprintf(fp, "Employee Count: %d\n", employeeCount);
-    for (i = 0; i < employeeCount; i++) {
-        stripNewline(employeeNames[i]);
-        stripNewline(employeePasswords[i]);
-        fprintf(fp, "Employee %d Name: %s\n", i + 1, employeeNames[i]);
-        fprintf(fp, "Employee %d Password: %s\n", i + 1, employeePasswords[i]);
-    }
-
-    fprintf(fp, "Customer Count: %d\n", customerCount);
-    fprintf(fp, "Next Account Number: %d\n", nextAccountNumber);
-
-    for (i = 0; i < customerCount; i++) {
-        stripNewline(customerNames[i]);
-        stripNewline(customerPasswords[i]);
-        stripNewline(complaints[i]);
-        stripNewline(complaintReplies[i]);
-
-        fprintf(fp, "Customer %d Account Number: %d\n", i + 1, accountNumbers[i]);
-        fprintf(fp, "Customer %d Name: %s\n", i + 1, customerNames[i]);
-        fprintf(fp, "Customer %d Password: %s\n", i + 1, customerPasswords[i]);
-        fprintf(fp, "Customer %d Balance: %.2f\n", i + 1, balances[i]);
-        fprintf(fp, "Customer %d Verified: %d\n", i + 1, verified[i]);
-        fprintf(fp, "Customer %d Complaint Status: %d\n", i + 1, complaintStatus[i]);
-        fprintf(fp, "Customer %d Complaint: %s\n", i + 1, complaints[i]);
-        fprintf(fp, "Customer %d Complaint Reply: %s\n", i + 1, complaintReplies[i]);
-        fprintf(fp, "Customer %d History Count: %d\n", i + 1, historyCount[i]);
-
-        for (j = 0; j < historyCount[i]; j++)
-            fprintf(fp, "Customer %d History %d: %s\n", i + 1, j + 1, history[i][j]);
-    }
-
-    fclose(fp);
-}
-
-void loadData() {
-    FILE *fp;
-    int i, j;
-
-    initDataFilePath();
-    fp = fopen(dataFilePath, "r");
-
-    if (!fp) {
-        addDefaultData();
-        saveData();
-        return;
-    }
-
-    if (!readLabelInt(fp, "Employee Count", &employeeCount) || employeeCount < 0 || employeeCount > 20) {
-        fclose(fp);
-        addDefaultData();
-        saveData();
-        return;
-    }
-
-    for (i = 0; i < employeeCount; i++) {
-        char label[64];
-        snprintf(label, sizeof(label), "Employee %d Name", i + 1);
-        if (!readLabelString(fp, label, employeeNames[i], sizeof(employeeNames[i]))) {
-            fclose(fp);
-            addDefaultData();
-            saveData();
-            return;
-        }
-
-        snprintf(label, sizeof(label), "Employee %d Password", i + 1);
-        if (!readLabelString(fp, label, employeePasswords[i], sizeof(employeePasswords[i]))) {
-            fclose(fp);
-            addDefaultData();
-            saveData();
-            return;
-        }
-    }
-
-    if (!readLabelInt(fp, "Customer Count", &customerCount) || customerCount < 0 || customerCount > 50 ||
-        !readLabelInt(fp, "Next Account Number", &nextAccountNumber) || nextAccountNumber < 1001) {
-        fclose(fp);
-        addDefaultData();
-        saveData();
-        return;
-    }
-
-    for (i = 0; i < customerCount; i++) {
-        char label[64];
-
-        snprintf(label, sizeof(label), "Customer %d Account Number", i + 1);
-        if (!readLabelInt(fp, label, &accountNumbers[i])) {
-            fclose(fp);
-            addDefaultData();
-            saveData();
-            return;
-        }
-
-        snprintf(label, sizeof(label), "Customer %d Name", i + 1);
-        if (!readLabelString(fp, label, customerNames[i], sizeof(customerNames[i]))) {
-            fclose(fp);
-            addDefaultData();
-            saveData();
-            return;
-        }
-
-        snprintf(label, sizeof(label), "Customer %d Password", i + 1);
-        if (!readLabelString(fp, label, customerPasswords[i], sizeof(customerPasswords[i]))) {
-            fclose(fp);
-            addDefaultData();
-            saveData();
-            return;
-        }
-
-        snprintf(label, sizeof(label), "Customer %d Balance", i + 1);
-        if (!readLabelFloat(fp, label, &balances[i])) {
-            fclose(fp);
-            addDefaultData();
-            saveData();
-            return;
-        }
-
-        snprintf(label, sizeof(label), "Customer %d Verified", i + 1);
-        if (!readLabelInt(fp, label, &verified[i])) {
-            fclose(fp);
-            addDefaultData();
-            saveData();
-            return;
-        }
-
-        snprintf(label, sizeof(label), "Customer %d Complaint Status", i + 1);
-        if (!readLabelInt(fp, label, &complaintStatus[i])) {
-            fclose(fp);
-            addDefaultData();
-            saveData();
-            return;
-        }
-
-        snprintf(label, sizeof(label), "Customer %d Complaint", i + 1);
-        if (!readLabelString(fp, label, complaints[i], sizeof(complaints[i]))) {
-            fclose(fp);
-            addDefaultData();
-            saveData();
-            return;
-        }
-
-        snprintf(label, sizeof(label), "Customer %d Complaint Reply", i + 1);
-        if (!readLabelString(fp, label, complaintReplies[i], sizeof(complaintReplies[i]))) {
-            fclose(fp);
-            addDefaultData();
-            saveData();
-            return;
-        }
-
-        snprintf(label, sizeof(label), "Customer %d History Count", i + 1);
-        if (!readLabelInt(fp, label, &historyCount[i]) || historyCount[i] < 0 || historyCount[i] > 20) {
-            fclose(fp);
-            addDefaultData();
-            saveData();
-            return;
-        }
-
-        for (j = 0; j < historyCount[i]; j++) {
-            snprintf(label, sizeof(label), "Customer %d History %d", i + 1, j + 1);
-            if (!readLabelString(fp, label, history[i][j], sizeof(history[i][j]))) {
-                fclose(fp);
-                addDefaultData();
-                saveData();
-                return;
-            }
-        }
-    }
-
-    fclose(fp);
 }
 
 int findEmployee(char name[]) {
@@ -451,7 +156,6 @@ void customerSignup() {
     printf("Status: Pending Verification.\n");
 
     customerCount++;
-    saveData();
 }
 
 void addEmployee() {
@@ -476,7 +180,6 @@ void addEmployee() {
     scanf("%s", employeePasswords[employeeCount]);
 
     employeeCount++;
-    saveData();
     printf("Employee added successfully.\n");
 }
 
@@ -514,7 +217,6 @@ void deleteEmployee() {
         }
 
         employeeCount--;
-        saveData();
         printf("Employee deleted successfully.\n");
     } else {
         printf("Invalid employee number.\n");
@@ -555,7 +257,6 @@ void editEmployee() {
         printf("Enter new password: ");
         scanf("%s", employeePasswords[num]);
 
-        saveData();
         printf("Employee updated successfully.\n");
     } else {
         printf("Invalid employee number.\n");
@@ -666,7 +367,6 @@ void editCustomer() {
         printf("Enter new password: ");
         scanf("%s", customerPasswords[index]);
 
-        saveData();
         printf("Customer updated successfully.\n");
     } else {
         printf("Invalid account number.\n");
@@ -703,7 +403,6 @@ void deleteCustomer() {
         }
 
         customerCount--;
-        saveData();
         printf("Customer deleted successfully.\n");
     } else {
         printf("Invalid account number.\n");
@@ -742,12 +441,10 @@ void verifyAccount() {
 
         if(choice == 1) {
             verified[index] = 1;
-            saveData();
             printf("Customer Approved.\n");
         }
         else if(choice == 2) {
             verified[index] = 2;
-            saveData();
             printf("Customer Rejected.\n");
         }
         else {
@@ -774,7 +471,7 @@ void viewComplaints() {
             fgets(complaintReplies[i], 100, stdin);
 
             complaintStatus[i] = 2;
-            saveData();
+
             printf("Complaint Resolved.\n");
         }
     }
@@ -924,8 +621,7 @@ void customerMenu() {
                         "Deposited %.2f | Balance %.2f",
                         amount, balances[index]);
 
-                            addHistory(index,text);
-                        saveData();
+                        addHistory(index,text);
                         printf("Deposit Successful\n");
                     } else {
                         printf("Invalid amount.\n");
@@ -941,7 +637,16 @@ void customerMenu() {
                     printf("Enter Amount: ");
                     amount = inputFloat();
 
-                    if(amount > 0 && balances[index] - amount >= 500) {
+                    if(amount <= 0) {
+                        printf("Invalid Amount\n");
+                    }
+                    else if(amount > balances[index]) {
+                        printf("Insufficient Balance\n");
+                    }
+                    else if(balances[index] - amount < 500) {
+                        printf("Minimum Balance 500 Required\n");
+                    }
+                    else {
                         balances[index] -= amount;
 
                         sprintf(text,
@@ -949,11 +654,7 @@ void customerMenu() {
                         amount, balances[index]);
 
                         addHistory(index,text);
-                        saveData();
                         printf("Withdraw Successful\n");
-                    }
-                    else {
-                        printf("Minimum Balance 500 Required\n");
                     }
                 }
                 break;
@@ -1009,7 +710,6 @@ void customerMenu() {
 
     if (verified[index] == 2) {
         verified[index] = 0;
-        saveData();
         printf("Reapply Successful.\n");
         printf("Status Changed To Pending Verification.\n");
     }
@@ -1040,7 +740,7 @@ void customerMenu() {
 int main() {
     int choice;
 
-    loadData();
+    addDefaultData();
 
     do {
         printf("\n===== BANK MANAGEMENT SYSTEM =====\n");
